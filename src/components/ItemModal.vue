@@ -1,0 +1,153 @@
+<template>
+  <div id="itemModalBackdrop" class="modal-backdrop" :class="{ show: open }" role="dialog" aria-modal="true" aria-labelledby="itemModalTitle">
+    <div class="modal" v-if="draft">
+      <div class="modal-header">
+        <div>
+          <h3 id="itemModalTitle" class="modal-title">Edit Work Item</h3>
+          <div id="itemModalSubtitle" class="modal-subtitle">{{ subtitle }}</div>
+        </div>
+        <button id="closeModalBtn" class="btn btn-light" type="button" @click="$emit('close')">关闭</button>
+      </div>
+      <div class="modal-body">
+        <div class="workitem-grid">
+          <div class="form-group">
+            <label for="modalWorkItem">Work Item</label>
+            <input
+              id="modalWorkItem"
+              ref="workItemInput"
+              class="form-control"
+              type="text"
+              placeholder="输入 work item"
+              v-model="draft.workItem"
+              @input="onInput"
+            />
+          </div>
+          <div class="form-group">
+            <label for="modalExpectDate">Expect Complete Date</label>
+            <input
+              id="modalExpectDate"
+              class="form-control"
+              type="date"
+              v-model="draft.expectCompleteDate"
+              @change="onInput"
+            />
+          </div>
+          <div class="form-group">
+            <label for="modalCreateDate">Create Date</label>
+            <input
+              id="modalCreateDate"
+              class="form-control"
+              type="date"
+              v-model="draft.createDate"
+              @change="onInput"
+            />
+          </div>
+          <div class="form-group">
+            <label for="modalPriority">Priority</label>
+            <select id="modalPriority" class="form-select" v-model="draft.priority" @change="onInput">
+              <option v-for="p in PRIORITIES" :key="p" :value="p">{{ p }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="tasks-header">
+          <div class="tasks-title">Tasks</div>
+          <button id="addTaskBtn" class="btn btn-outline-primary btn-sm" type="button" @click="$emit('add-task')">＋ 新增 Task</button>
+        </div>
+
+        <div class="tasks-table-wrap">
+          <table class="tasks-table" aria-label="Work item tasks table">
+            <thead>
+              <tr>
+                <th class="task-name-col">Task Name</th>
+                <th class="task-desc-col">Description</th>
+                <th class="date-range-col">Date Range</th>
+                <th class="remark-col">Remark/Blocker</th>
+                <th class="task-actions-col">Action</th>
+              </tr>
+            </thead>
+            <tbody id="tasksTableBody">
+              <template v-if="draft.tasks.length">
+                <TaskRow
+                  v-for="(task, index) in draft.tasks"
+                  :key="task.id"
+                  :task="task"
+                  :index="index"
+                  @update-field="onTaskFieldUpdate"
+                  @update-slot="onTaskSlotUpdate"
+                  @delete="(idx) => $emit('delete-task', idx)"
+                />
+              </template>
+              <tr v-else>
+                <td colspan="5" style="text-align:center;color:#94a3b8;padding:18px;">暂无 task，点击右上角 "＋ 新增 Task"。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="deleteItemBtn" class="btn btn-outline-danger" type="button" @click="$emit('delete-item')">删除 Work Item</button>
+        <div class="actions">
+          <span id="modalSaveHint" class="save-status">{{ saveHint }}</span>
+          <button id="saveItemBtn" class="btn btn-primary" type="button" @click="$emit('save')">保存并关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, nextTick, ref, watch } from "vue";
+import TaskRow from "./TaskRow.vue";
+import { PRIORITIES } from "../constants/index.js";
+
+const props = defineProps({
+  open: { type: Boolean, default: false },
+  draft: { type: Object, default: null },
+  context: { type: Object, default: null },
+  team: { type: String, default: "" },
+  statusLabels: { type: Object, required: true },
+  saveHint: { type: String, default: "" }
+});
+
+const emit = defineEmits([
+  "close",
+  "save",
+  "add-task",
+  "delete-task",
+  "delete-item",
+  "input-change",
+  "task-field-change",
+  "task-slot-change"
+]);
+
+const workItemInput = ref(null);
+
+const subtitle = computed(() => {
+  if (!props.context) return "";
+  return `${props.team} / ${props.context.member} / ${props.statusLabels[props.context.status]}`;
+});
+
+function onInput() {
+  emit("input-change");
+}
+
+function onTaskFieldUpdate(index, field, value) {
+  emit("task-field-change", index, field, value);
+}
+
+function onTaskSlotUpdate(index, slotKey, checked) {
+  emit("task-slot-change", index, slotKey, checked);
+}
+
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) {
+      nextTick(() => {
+        workItemInput.value?.focus();
+      });
+    }
+  }
+);
+</script>
